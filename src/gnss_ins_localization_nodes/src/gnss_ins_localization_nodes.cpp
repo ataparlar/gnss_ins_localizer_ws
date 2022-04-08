@@ -2,8 +2,6 @@
 
 #include "gnss_ins_localization_nodes/gnss_ins_localization_nodes.h"
 
-#include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
 #include <GeographicLib/LocalCartesian.hpp>
 #include <applanix_msgs/msg/navigation_solution_gsof49.hpp>
 #include <applanix_msgs/msg/navigation_performance_gsof50.hpp>
@@ -11,50 +9,38 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/LinearMath/Quaternion.h>
-#include <nav_msgs/msg/odometry.hpp>
 #include <tf2_ros/buffer.h>
 #include <rclcpp/rclcpp.hpp>
 #include <memory>
+
+
 
 CartesianConv::CartesianConv()
     : Node("SensorSubscriber") {
   std::cout.precision(20);
 
   map_to_pose_twist = this->create_publisher<geometry_msgs::msg::TwistWithCovarianceStamped>(
-      "/isuzu/twist_with_covariance_stamped",
+      "/test/twist_with_covariance_stamped",
       10);
   map_to_pose_ =
-      this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/isuzu/pose_with_covariance_stamped", 10);
+      this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/test/pose_with_covariance_stamped", 10);
 
-  sub_49 =
-      std::make_unique<message_filters::Subscriber<applanix_msgs::msg::NavigationSolutionGsof49>>(
-          this, "/lvx_client/gsof/ins_solution_49");
+  msg_49_sub_ = this->create_subscription<applanix_msgs::msg::NavigationSolutionGsof49>(
+      "/lvx_client/gsof/ins_solution_49", 10,
+      std::bind(&CartesianConv::msg_49_callback, this, std::placeholders::_1));
+  msg_50_sub_ = this->create_subscription<applanix_msgs::msg::NavigationPerformanceGsof50>(
+      "/lvx_client/gsof/ins_solution_rms_50", 10,
+      std::bind(&CartesianConv::msg_50_callback, this, std::placeholders::_1));
 
-  sub_50 =
-      std::make_unique<message_filters::Subscriber<applanix_msgs::msg::NavigationPerformanceGsof50>>(
-          this, "/lvx_client/gsof/ins_solution_rms_50");
-
-  my_synchronizer = std::make_unique<message_filters::Synchronizer<SyncPolicyT>>(
-      SyncPolicyT(10000), *sub_49, *sub_50);
-
-  my_synchronizer->registerCallback(std::bind(&CartesianConv::GnssCallback,
-                                              this,
-                                              std::placeholders::_1,
-                                              std::placeholders::_2));
 
   buffer_ptr_transform = std::make_shared<tf2_ros::Buffer>(this->get_clock());
   tf2_listener_ptr_transform = std::make_shared<tf2_ros::TransformListener>(*buffer_ptr_transform);
 
 }
-
-void CartesianConv::GnssCallback(
-    const applanix_msgs::msg::NavigationSolutionGsof49::ConstSharedPtr &Msg_49,
-    const applanix_msgs::msg::NavigationPerformanceGsof50::ConstSharedPtr &Msg_50) {
-
-  // get lat-lon-alt messages
-  double Latitude = Msg_49->lla.latitude;
-  double Longitude = Msg_49->lla.longitude;
-  double Altitude = Msg_49->lla.altitude;
+void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolutionGsof49::SharedPtr msg_49) {
+  double Latitude = msg_49->lla.latitude;
+  double Longitude = msg_49->lla.longitude;
+  double Altitude = msg_49->lla.altitude;
 
   if (is_init) {
 
@@ -88,7 +74,6 @@ void CartesianConv::GnssCallback(
   }
 
   // pose with covariance stamped msg
-  geometry_msgs::msg::PoseWithCovarianceStamped gnss_baselink_pose;
   gnss_baselink_pose.header.frame_id = "map";
   gnss_baselink_pose.header.stamp = rclcpp::Clock().now();
 
@@ -96,9 +81,9 @@ void CartesianConv::GnssCallback(
   double deg2rad = M_PI / 180;
 
   tf2::Quaternion quaternion, ins_corrected_quat;
-  double roll = Msg_49->roll * deg2rad;
-  double pitch = Msg_49->pitch * deg2rad;
-  double yaw = Msg_49->heading * deg2rad;
+  double roll = msg_49->roll * deg2rad;
+  double pitch = msg_49->pitch * deg2rad;
+  double yaw = msg_49->heading * deg2rad;
   quaternion.setRPY(roll, pitch, yaw);
 
   tf2::Matrix3x3 ENU2NED, ins_rot_matrix, ins_rot_, ins_corrected_rot_, ins_to_ins_corrected;
@@ -138,35 +123,20 @@ void CartesianConv::GnssCallback(
 
   gnss_baselink_pose.pose.pose.position = base_link_map_pose.pose.position;
 
-  geometry_msgs::msg::TwistWithCovarianceStamped gnss_baselink_twist;
+  // gnss_base_link_twist
   gnss_baselink_twist.header.frame_id = "base_link";
   gnss_baselink_twist.header.stamp = rclcpp::Clock().now();
 
-
-
   // map to base_link twist
-  gnss_baselink_twist.twist.twist.linear.x = Msg_49->velocity.east;
-  gnss_baselink_twist.twist.twist.linear.y = Msg_49->velocity.north;
-  gnss_baselink_twist.twist.twist.linear.z = Msg_49->velocity.down;
+  gnss_baselink_twist.twist.twist.linear.x = msg_49->velocity.east;
+  gnss_baselink_twist.twist.twist.linear.y = msg_49->velocity.north;
+  gnss_baselink_twist.twist.twist.linear.z = msg_49->velocity.down;
 
-  gnss_baselink_twist.twist.twist.angular.x = Msg_49->ang_rate_trans;
-  gnss_baselink_twist.twist.twist.angular.y = Msg_49->ang_rate_long;
-  gnss_baselink_twist.twist.twist.angular.z = -Msg_49->ang_rate_down;
-
-  // map to base_link covariance
-  gnss_baselink_twist.twist.covariance[0]  = std::pow(Msg_50->vel_rms_error.east, 2);
-  gnss_baselink_twist.twist.covariance[7]  = std::pow(Msg_50->vel_rms_error.north, 2);
-  gnss_baselink_twist.twist.covariance[14] = std::pow(Msg_50->vel_rms_error.down, 2);
+  gnss_baselink_twist.twist.twist.angular.x = msg_49->ang_rate_trans * deg2rad;
+  gnss_baselink_twist.twist.twist.angular.y = msg_49->ang_rate_long * deg2rad;
+  gnss_baselink_twist.twist.twist.angular.z = msg_49->ang_rate_down * deg2rad;
 
   map_to_pose_twist->publish(gnss_baselink_twist);
-
-  gnss_baselink_pose.pose.covariance[0]  = std::pow(Msg_50->pos_rms_error.east, 2);
-  gnss_baselink_pose.pose.covariance[7]  = std::pow(Msg_50->pos_rms_error.north, 2);
-  gnss_baselink_pose.pose.covariance[14] = std::pow(Msg_50->pos_rms_error.down, 2);
-  gnss_baselink_pose.pose.covariance[21] = std::pow(Msg_50->attitude_rms_error_roll * deg2rad, 2);
-  gnss_baselink_pose.pose.covariance[28] = std::pow(Msg_50->attitude_rms_error_pitch * deg2rad, 2);
-  gnss_baselink_pose.pose.covariance[35] = std::pow(Msg_50->attitude_rms_error_heading * deg2rad, 2);
-
   map_to_pose_->publish(gnss_baselink_pose);
 
   // map-base_link transform
@@ -188,6 +158,28 @@ void CartesianConv::GnssCallback(
 //  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_map_to_base_link =
 //      std::make_shared<tf2_ros::TransformBroadcaster>(this);
 //  tf_broadcaster_map_to_base_link->sendTransform(transformStamped_map_to_base_link);
+
+
+}
+void CartesianConv::msg_50_callback(const applanix_msgs::msg::NavigationPerformanceGsof50::SharedPtr msg_50) {
+
+  gnss_baselink_twist.twist.covariance[0]  = std::pow(msg_50->vel_rms_error.east, 2);
+  gnss_baselink_twist.twist.covariance[7]  = std::pow(msg_50->vel_rms_error.north, 2);
+  gnss_baselink_twist.twist.covariance[14] = std::pow(msg_50->vel_rms_error.down, 2);
+  gnss_baselink_twist.twist.covariance[21] = 1000;
+  gnss_baselink_twist.twist.covariance[28] = 1000;
+  gnss_baselink_twist.twist.covariance[35] = 1000;
+
+  gnss_baselink_pose.pose.covariance[0]  = std::pow(msg_50->pos_rms_error.east, 2);
+  gnss_baselink_pose.pose.covariance[7]  = std::pow(msg_50->pos_rms_error.north, 2);
+  gnss_baselink_pose.pose.covariance[14] = std::pow(msg_50->pos_rms_error.down, 2);
+  gnss_baselink_pose.pose.covariance[21] = std::pow(msg_50->attitude_rms_error_roll * deg2rad, 2);
+  gnss_baselink_pose.pose.covariance[28] = std::pow(msg_50->attitude_rms_error_pitch * deg2rad, 2);
+  gnss_baselink_pose.pose.covariance[35] = std::pow( msg_50->attitude_rms_error_heading * deg2rad, 2);
+
+  std::cout<<"std::pow(msg_50->vel_rms_error.north, 2):  "<<std::pow(msg_50->vel_rms_error.north, 2)<<std::endl;
+  std::cout<<"std::pow(msg_50->vel_rms_error.down, 2): "<<std::pow(msg_50->vel_rms_error.down, 2)<<std::endl;
+  std::cout<<"std::pow( msg_50->attitude_rms_error_heading * deg2rad, 2) : "<<std::pow( msg_50->attitude_rms_error_heading * deg2rad, 2) <<std::endl;
 
 }
 
