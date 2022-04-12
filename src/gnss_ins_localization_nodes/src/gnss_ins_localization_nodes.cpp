@@ -128,13 +128,16 @@ void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolution
   gnss_baselink_twist.header.stamp = rclcpp::Clock().now();
 
   // map to base_link twist
-  gnss_baselink_twist.twist.twist.linear.x = msg_49->velocity.east;
-  gnss_baselink_twist.twist.twist.linear.y = msg_49->velocity.north;
-  gnss_baselink_twist.twist.twist.linear.z = msg_49->velocity.down;
+//  gnss_baselink_twist.twist.twist.linear.x = msg_49->velocity.east;
+//  gnss_baselink_twist.twist.twist.linear.y = msg_49->velocity.north;
+//  gnss_baselink_twist.twist.twist.linear.z = msg_49->velocity.down;
+//
+//  gnss_baselink_twist.twist.twist.angular.x = msg_49->ang_rate_trans * deg2rad;
+//  gnss_baselink_twist.twist.twist.angular.y = msg_49->ang_rate_long * deg2rad;
+//  gnss_baselink_twist.twist.twist.angular.z = msg_49->ang_rate_down * deg2rad;
 
-  gnss_baselink_twist.twist.twist.angular.x = msg_49->ang_rate_trans * deg2rad;
-  gnss_baselink_twist.twist.twist.angular.y = msg_49->ang_rate_long * deg2rad;
-  gnss_baselink_twist.twist.twist.angular.z = msg_49->ang_rate_down * deg2rad;
+  gnss_baselink_twist.twist.twist.linear.x = msg_49->total_speed;
+  gnss_baselink_twist.twist.twist.angular.z = - msg_49->ang_rate_down * deg2rad;
 
   map_to_pose_twist->publish(gnss_baselink_twist);
   map_to_pose_->publish(gnss_baselink_pose);
@@ -166,6 +169,7 @@ void CartesianConv::msg_50_callback(const applanix_msgs::msg::NavigationPerforma
   gnss_baselink_twist.twist.covariance[0]  = std::pow(msg_50->vel_rms_error.east, 2);
   gnss_baselink_twist.twist.covariance[7]  = std::pow(msg_50->vel_rms_error.north, 2);
   gnss_baselink_twist.twist.covariance[14] = std::pow(msg_50->vel_rms_error.down, 2);
+
   gnss_baselink_twist.twist.covariance[21] = 1000;
   gnss_baselink_twist.twist.covariance[28] = 1000;
   gnss_baselink_twist.twist.covariance[35] = 1000;
@@ -177,9 +181,9 @@ void CartesianConv::msg_50_callback(const applanix_msgs::msg::NavigationPerforma
   gnss_baselink_pose.pose.covariance[28] = std::pow(msg_50->attitude_rms_error_pitch * deg2rad, 2);
   gnss_baselink_pose.pose.covariance[35] = std::pow( msg_50->attitude_rms_error_heading * deg2rad, 2);
 
-  std::cout<<"std::pow(msg_50->vel_rms_error.north, 2):  "<<std::pow(msg_50->vel_rms_error.north, 2)<<std::endl;
-  std::cout<<"std::pow(msg_50->vel_rms_error.down, 2): "<<std::pow(msg_50->vel_rms_error.down, 2)<<std::endl;
-  std::cout<<"std::pow( msg_50->attitude_rms_error_heading * deg2rad, 2) : "<<std::pow( msg_50->attitude_rms_error_heading * deg2rad, 2) <<std::endl;
+//  std::cout<<"std::pow(msg_50->vel_rms_error.north, 2):  "<<std::pow(msg_50->vel_rms_error.north, 2)<<std::endl;
+//  std::cout<<"std::pow(msg_50->vel_rms_error.down, 2): "<<std::pow(msg_50->vel_rms_error.down, 2)<<std::endl;
+//  std::cout<<"std::pow( msg_50->attitude_rms_error_heading * deg2rad, 2) : "<<std::pow( msg_50->attitude_rms_error_heading * deg2rad, 2) <<std::endl;
 
 }
 
@@ -189,3 +193,4 @@ int main(int argc, char *argv[]) {
   rclcpp::shutdown();
   return 0;
 }
+
