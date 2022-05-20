@@ -39,7 +39,7 @@ CartesianConv::CartesianConv()
   msg_point_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
         "/test/point_cloud", 10);
   msg_point_cloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-        "/lidar_right/velodyne_points", 10,
+        "/velodyne_points", 10,
         std::bind(&CartesianConv::msg_point_cloud_callback, this, std::placeholders::_1));
 
   buffer_ptr_transform = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -59,6 +59,32 @@ void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolution
   double Longitude = msg_49->lla.longitude;
   double Altitude = msg_49->lla.altitude;
 
+
+    if (is_init) {
+    double initial_map_lat = declare_parameter("latitude_map").template get<double>();
+    double initial_map_lon = declare_parameter("longitude_map").template get<double>();
+    double initial_map_alt = declare_parameter("altitude_map").template get<double>();
+
+    std::cout << "map parameters: " << "  latitude " << initial_map_lat << " longitude " << initial_map_lon
+              << " altitude " << initial_map_alt << std::endl;
+
+//    GeographicLib::Geocentric earth(GeographicLib::Constants::WGS84_a(), GeographicLib::Constants::WGS84_f());
+//    GeographicLib::Geocentric earth(GeographicLib::Constants::WGS84_a(),  GeographicLib::Constants::WGS84_f());
+    //create local cartesian reference map position according to earth
+//    local_cartesian_map = GeographicLib::LocalCartesian(initial_map_lat, initial_map_lon, initial_map_alt);
+
+    double lat = initial_map_lat, lon = initial_map_lon; // Baghdad
+    int zone ;
+    bool northp;
+
+//    UTMUPS::Forward(lat, lon, zone, northp, initial_map_x, initial_map_y);
+//    string zonestr = UTMUPS::EncodeZone(zone, northp);
+//    cout << fixed << std::setprecision(2)
+
+    is_init = false;
+    return;
+  }
+
   // pose with covariance stamped msg
   gnss_baselink_pose.header.frame_id = "map";
   gnss_baselink_pose.header.stamp = rclcpp::Clock().now();
@@ -67,9 +93,9 @@ void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolution
   double deg2rad = M_PI / 180;
 
   tf2::Quaternion quaternion, ins_corrected_quat;
-  double roll  = msg_49->roll * deg2rad;
+  double roll = msg_49->roll * deg2rad;
   double pitch = msg_49->pitch * deg2rad;
-  double yaw   = msg_49->heading * deg2rad;
+  double yaw = msg_49->heading * deg2rad;
   quaternion.setRPY(roll, pitch, yaw);
 
   tf2::Matrix3x3 ENU2NED, ins_rot_matrix, ins_rot_, ins_corrected_rot_, ins_to_ins_corrected;
@@ -80,7 +106,8 @@ void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolution
 
   ins_rot_ = ENU2NED * ins_rot_matrix;
 
-  ins_corrected_rot_ = ins_rot_ * ins_to_ins_corrected;
+//  ins_corrected_rot_ = ins_rot_ * ins_to_ins_corrected;
+    ins_corrected_rot_ = ins_rot_;
   ins_corrected_rot_.getRotation(ins_corrected_quat);
 
   geometry_msgs::msg::PoseStamped ins_corrected_rot_pose;
@@ -94,16 +121,23 @@ void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolution
 
   // map to base_link position
   geometry_msgs::msg::PoseStamped ins_corrected_pose_map;
+//      local_cartesian_map.Forward(Latitude,
+//                              Longitude,
+//                              Altitude,
+//                              ins_corrected_pose_map.pose.position.x,
+//                              ins_corrected_pose_map.pose.position.y,
+//                              ins_corrected_pose_map.pose.position.z);
+    double lat = Latitude, lon = Longitude; // Baghdad
+    int zone ;
+    bool northp;
 
-  double lat = Latitude, lon = Longitude; // Baghdad
-  int zone ;
-  bool northp;
+    UTMUPS::Forward(lat, lon, zone, northp, ins_corrected_pose_map.pose.position.x, ins_corrected_pose_map.pose.position.y);
+//    string zonestr = UTMUPS::EncodeZone(zone, northp);
 
-  UTMUPS::Forward(lat, lon, zone, northp, ins_corrected_pose_map.pose.position.x, ins_corrected_pose_map.pose.position.y);
-
-  ins_corrected_pose_map.pose.position.x = ins_corrected_pose_map.pose.position.x - 698891.000 ;
-  ins_corrected_pose_map.pose.position.y = ins_corrected_pose_map.pose.position.y - 4520550.000;
-  ins_corrected_pose_map.pose.position.z = Altitude - 47.47;
+//    cout << fixed << std::setprecision(2);
+    ins_corrected_pose_map.pose.position.x = ins_corrected_pose_map.pose.position.x - 658532 ;
+    ins_corrected_pose_map.pose.position.y = ins_corrected_pose_map.pose.position.y - 4543020;
+    ins_corrected_pose_map.pose.position.z = Altitude - 99.15;
 
   gnss_baselink_pose.pose.pose.position = ins_corrected_pose_map.pose.position;
 
@@ -123,6 +157,12 @@ void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolution
   transformStamped_map_to_base_link.transform.rotation.z = gnss_baselink_pose.pose.pose.orientation.z;
   transformStamped_map_to_base_link.transform.rotation.w = gnss_baselink_pose.pose.pose.orientation.w;
 
+  std::cout<<"Latitude "<<Latitude<<std::endl;
+  std::cout<<"Longitude "<<Longitude<<std::endl;
+  std::cout<<"Altitude "<<Altitude<<std::endl;
+  std::cout<<"ins_corrected_pose_map.pose.position.x "<<ins_corrected_pose_map.pose.position.x<<std::endl;
+  std::cout<<"ins_corrected_pose_map.pose.position.y "<<ins_corrected_pose_map.pose.position.y<<std::endl;
+  std::cout<<"ins_corrected_pose_map.pose.position.z "<<ins_corrected_pose_map.pose.position.z<<std::endl;
 
 
   // send transforms

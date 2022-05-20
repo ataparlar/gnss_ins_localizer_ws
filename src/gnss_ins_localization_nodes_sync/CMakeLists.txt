@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(gnss_ins_msg_buffer)
+project(gnss_ins_localization_nodes_sync)
 
 #include(cmake/macros.cmake)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
@@ -32,8 +32,6 @@ find_package(GeographicLib REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(ublox_msgs REQUIRED)
 
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
 
@@ -45,10 +43,10 @@ include_directories(/home/melke/ws_plotjuggler/install/applanix_msgs/include)
 
 ament_export_include_directories(include)
 
-add_executable(${PROJECT_NAME} src/gnss_ins_msg_buffer.cpp)
+add_executable(${PROJECT_NAME} src/gnss_ins_localization_nodes.cpp)
 
 
-ament_target_dependencies(${PROJECT_NAME} tf2 tf2_ros rclcpp std_msgs applanix_msgs geometry_msgs GeographicLib tf2_geometry_msgs sensor_msgs nav_msgs ublox_msgs)
+ament_target_dependencies(${PROJECT_NAME} tf2 tf2_ros rclcpp std_msgs applanix_msgs geometry_msgs GeographicLib tf2_geometry_msgs sensor_msgs nav_msgs)
 
 
 install(TARGETS
@@ -65,7 +63,6 @@ set(AMENT_DEPENDENCIES
         "geometry_msgs"
         "tf2_geometry_msgs"
         "sensor_msgs"
-        "ublox_msgs"
         )
         
 
