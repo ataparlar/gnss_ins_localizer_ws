@@ -30,11 +30,16 @@ def generate_launch_description():
 #                       executable = "static_transform_publisher",
 #                       arguments = ["-0.1062", "0.0", "-0.1129", "0.0", "-0.0871557", "0.0", "0.996194","velodyne_middle", "ins_corrected"])
 
-    node_ins_corrected_dummy = Node(package = "tf2_ros", 
-    		namespace="gnss",
-                       executable = "static_transform_publisher",
-                       arguments = ["0.124", "0.000", "0.093", "-0.0", "0.0871557", "-0.0", "0.996194","gnss", "velodyne_middle"])
-    node_base_link_dummy = Node(package = "tf2_ros", 
+    # node_ins_corrected_dummy = Node(package = "tf2_ros",
+    # 		namespace="gnss",
+    #                    executable = "static_transform_publisher",
+    #                    arguments = ["0.124", "0.000", "0.093", "-0.0", "0.0871557", "-0.0", "0.996194","gnss", "velodyne_middle"])
+
+    node_ins_corrected_dummy = Node(package = "tf2_ros",
+                                    namespace="gnss",
+                                    executable = "static_transform_publisher",
+                                    arguments = ["0.124", "0.000", "0.093", "0.0", "0.174533", "-0.05","gnss", "velodyne_middle"])
+    node_base_link_dummy = Node(package = "tf2_ros",
     		namespace="base_link",
                        executable = "static_transform_publisher",
                        arguments = ["6.055", "-0.188", "-0.527", "0.000", "0.013", "-0.025", "1.000","base_link", "gnss"])
