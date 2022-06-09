@@ -17,14 +17,14 @@
 #include <iostream>
 // include geographic lib WGS84_GRS80
 #include <GeographicLib/Geocentric.hpp>
-
+#include "velodyne_msgs/msg/velodyne_scan.hpp"
 using namespace GeographicLib;
 CartesianConv::CartesianConv()
     : Node("SensorSubscriber") {
   std::cout.precision(20);
 
-  map_to_pose_twist = this->create_publisher<geometry_msgs::msg::TwistWithCovarianceStamped>(
-      "/test/twist_with_covariance_stamped",
+  vehicle_twist_publisher = this->create_publisher<geometry_msgs::msg::TwistWithCovarianceStamped>(
+      "/localization/twist_estimator/twist_with_covariance",
       10);
   map_to_pose_ =
       this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/sensing/gnss/pose_with_covariance", 10);
@@ -45,6 +45,15 @@ CartesianConv::CartesianConv()
   buffer_ptr_transform = std::make_shared<tf2_ros::Buffer>(this->get_clock());
   tf2_listener_ptr_transform = std::make_shared<tf2_ros::TransformListener>(*buffer_ptr_transform);
 
+
+    std::function<void(const velodyne_msgs::msg::VelodyneScan::ConstSharedPtr msg)> cb_right_scan = std::bind(
+            &CartesianConv::cb_right_scan, this,
+            std::placeholders::_1);
+    sub_point_cloud_right_scan = this->create_subscription<velodyne_msgs::msg::VelodyneScan>(
+            "/lidar_right/velodyne_packets", 10, cb_right_scan);
+    pub_point_cloud_right_scan = this->create_publisher<velodyne_msgs::msg::VelodyneScan>("/sensing/lidar/right/velodyne_packets", 10);
+
+
 }
 
 void CartesianConv::msg_point_cloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
@@ -61,7 +70,7 @@ void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolution
 
   // pose with covariance stamped msg
   gnss_baselink_pose.header.frame_id = "map";
-  gnss_baselink_pose.header.stamp = rclcpp::Clock().now();
+  gnss_baselink_pose.header.stamp = this->now();
 
   // map to base_link rotations
   double deg2rad = M_PI / 180;
@@ -81,6 +90,7 @@ void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolution
   ins_rot_ = ENU2NED * ins_rot_matrix;
 
   ins_corrected_rot_ = ins_rot_ * ins_to_ins_corrected;
+//  ins_corrected_rot_ = ins_rot_ ;
   ins_corrected_rot_.getRotation(ins_corrected_quat);
 
   geometry_msgs::msg::PoseStamped ins_corrected_rot_pose;
@@ -109,27 +119,24 @@ void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolution
 
   map_to_pose_->publish(gnss_baselink_pose);
 
-  // map-base_link transform
-  geometry_msgs::msg::TransformStamped transformStamped_map_to_base_link;
-  transformStamped_map_to_base_link.header.stamp = rclcpp::Clock().now();
-  transformStamped_map_to_base_link.header.frame_id = "map";
-  transformStamped_map_to_base_link.child_frame_id = "gnss";
-  transformStamped_map_to_base_link.transform.translation.x = ins_corrected_pose_map.pose.position.x;
-  transformStamped_map_to_base_link.transform.translation.y = ins_corrected_pose_map.pose.position.y;
-  transformStamped_map_to_base_link.transform.translation.z = ins_corrected_pose_map.pose.position.z;
-
-  transformStamped_map_to_base_link.transform.rotation.x = gnss_baselink_pose.pose.pose.orientation.x;
-  transformStamped_map_to_base_link.transform.rotation.y = gnss_baselink_pose.pose.pose.orientation.y;
-  transformStamped_map_to_base_link.transform.rotation.z = gnss_baselink_pose.pose.pose.orientation.z;
-  transformStamped_map_to_base_link.transform.rotation.w = gnss_baselink_pose.pose.pose.orientation.w;
+  vehicle_twist_.header.frame_id = "base_link";
+  vehicle_twist_.header.stamp = rclcpp::Clock().now();
+  vehicle_twist_.twist.twist.linear.x = msg_49->total_speed;
+  vehicle_twist_.twist.twist.angular.z = - msg_49->ang_rate_down * deg2rad;
+  vehicle_twist_publisher->publish(vehicle_twist_);
 
 
 
-  // send transforms
-//  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_map_to_base_link =
-//      std::make_shared<tf2_ros::TransformBroadcaster>(this);
-//  tf_broadcaster_map_to_base_link->sendTransform(transformStamped_map_to_base_link);
+}
 
+void CartesianConv::cb_right_scan(const velodyne_msgs::msg::VelodyneScan::ConstSharedPtr &msg){
+
+    pc_will_publish_.packets = msg->packets;
+    pc_will_publish_.header.frame_id = "velodyne_right";
+    pc_will_publish_.header.stamp = gnss_baselink_pose.header.stamp;
+    pc_will_publish_.packets.data()->stamp = this->now();
+    pub_point_cloud_right_scan->publish(pc_will_publish_);
+    std::cout<<" publishing scan"<<std::endl;
 
 }
 void CartesianConv::msg_50_callback(const applanix_msgs::msg::NavigationPerformanceGsof50::SharedPtr msg_50) {
