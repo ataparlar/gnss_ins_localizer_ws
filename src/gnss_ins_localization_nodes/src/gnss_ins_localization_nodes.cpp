@@ -27,7 +27,7 @@ CartesianConv::CartesianConv()
       "/test/twist_with_covariance_stamped",
       10);
   map_to_pose_ =
-      this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/test/pose_with_covariance_stamped", 10);
+      this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/sensing/gnss/pose_with_covariance", 10);
 
   msg_49_sub_ = this->create_subscription<applanix_msgs::msg::NavigationSolutionGsof49>(
       "/lvx_client/gsof/ins_solution_49", 10,
@@ -126,9 +126,9 @@ void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolution
 
 
   // send transforms
-  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_map_to_base_link =
-      std::make_shared<tf2_ros::TransformBroadcaster>(this);
-  tf_broadcaster_map_to_base_link->sendTransform(transformStamped_map_to_base_link);
+//  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_map_to_base_link =
+//      std::make_shared<tf2_ros::TransformBroadcaster>(this);
+//  tf_broadcaster_map_to_base_link->sendTransform(transformStamped_map_to_base_link);
 
 
 }
