@@ -26,14 +26,13 @@ find_package(ament_cmake REQUIRED)
 find_package(applanix_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(tf2_ros REQUIRED)
 find_package(GeographicLib REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
+#find_package(tf2_geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(velodyne_msgs REQUIRED)
+find_package(autoware_auto_vehicle_msgs REQUIRED)
 
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
 
@@ -48,9 +47,7 @@ ament_export_include_directories(include)
 add_executable(${PROJECT_NAME} src/gnss_ins_localization_nodes.cpp)
 
 
-
-
-ament_target_dependencies(${PROJECT_NAME} tf2 tf2_ros rclcpp std_msgs applanix_msgs geometry_msgs GeographicLib tf2_geometry_msgs sensor_msgs nav_msgs velodyne_msgs)
+ament_target_dependencies(${PROJECT_NAME} rclcpp std_msgs applanix_msgs geometry_msgs GeographicLib sensor_msgs nav_msgs velodyne_msgs autoware_auto_vehicle_msgs)
 
 
 install(TARGETS
