@@ -13,6 +13,11 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <memory>
 #include "sensor_msgs/msg/point_cloud2.hpp"
+#include <autoware_sensing_msgs/msg/gnss_ins_orientation_stamped.hpp>
+#include "message_filters/subscriber.h"
+#include "message_filters/time_synchronizer.h"
+#include "message_filters/sync_policies/approximate_time.h"
+
 
 class CartesianConv : public rclcpp::Node {
  public:
@@ -32,8 +37,6 @@ class CartesianConv : public rclcpp::Node {
   rclcpp::Subscription<applanix_msgs::msg::NavigationSolutionGsof49>::SharedPtr msg_49_sub_;
   rclcpp::Subscription<applanix_msgs::msg::NavigationPerformanceGsof50>::SharedPtr msg_50_sub_;
 
-
-
     //added for point cloud bag file test
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr msg_point_cloud_sub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr msg_point_cloud_pub_;
@@ -42,8 +45,33 @@ class CartesianConv : public rclcpp::Node {
   void msg_49_callback(const applanix_msgs::msg::NavigationSolutionGsof49::SharedPtr msg);
   void msg_50_callback(const applanix_msgs::msg::NavigationPerformanceGsof50::SharedPtr msg);
 
-//  geometry_msgs::msg::TwistWithCovarianceStamped vehicle_twist;
+  //  geometry_msgs::msg::TwistWithCovarianceStamped vehicle_twist;
   geometry_msgs::msg::TwistWithCovarianceStamped vehicle_twist_;
+
+
+  // with message_filters
+  void applanix_msgs_callback(
+       const applanix_msgs::msg::NavigationSolutionGsof49::ConstSharedPtr &lla,
+       const applanix_msgs::msg::NavigationPerformanceGsof50::ConstSharedPtr &rms);
+
+
+  // topic subscribers declared from message_filters
+  typedef message_filters::sync_policies::ApproximateTime<
+        applanix_msgs::msg::NavigationSolutionGsof49,
+        applanix_msgs::msg::NavigationPerformanceGsof50> approximate_policy;
+
+  // made a synchronizer type which uses approximate policy
+  typedef message_filters::Synchronizer<approximate_policy> SyncObj;
+
+  // make this synchronizer a shared_ptr in order to reach the callback function
+  // when the node will be run **********
+  std::shared_ptr<SyncObj> syncobj_;
+
+  message_filters::Subscriber<applanix_msgs::msg::NavigationSolutionGsof49> lla_subs; //49
+  message_filters::Subscriber<applanix_msgs::msg::NavigationPerformanceGsof50> rms_subs; //50
+
+  autoware_sensing_msgs::msg::GnssInsOrientationStamped autoware_orientation_msg;
+  rclcpp::Publisher<autoware_sensing_msgs::msg::GnssInsOrientationStamped>::SharedPtr autoware_msg_publisher;
 };
 
 #endif  // GNSS_INS_MSG_BUFFER_NODE__GNSS_INS_MSG_BUFFER_NODE_H_

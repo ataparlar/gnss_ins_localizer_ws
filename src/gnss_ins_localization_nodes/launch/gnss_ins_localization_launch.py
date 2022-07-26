@@ -4,9 +4,9 @@ from launch_ros.actions import Node
 def generate_launch_description():
 
     isuzu_map_params = {
-        "latitude_map": 41.02297441,
-        "longitude_map": 28.88561442,
-        "altitude_map": 99.15
+        "latitude_map": 40.81187906, #41.02297441,
+        "longitude_map": 29.35810110, #28.88561442,
+        "altitude_map": 47.62 #99.15
 
     }
     return LaunchDescription([

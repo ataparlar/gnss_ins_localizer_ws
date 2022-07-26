@@ -34,6 +34,8 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ublox_msgs REQUIRED)
+find_package(autoware_sensing_msgs REQUIRED)
+find_package(message_filters REQUIRED)
 
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
 
@@ -48,7 +50,20 @@ ament_export_include_directories(include)
 add_executable(${PROJECT_NAME} src/gnss_ins_msg_buffer.cpp)
 
 
-ament_target_dependencies(${PROJECT_NAME} tf2 tf2_ros rclcpp std_msgs applanix_msgs geometry_msgs GeographicLib tf2_geometry_msgs sensor_msgs nav_msgs ublox_msgs)
+ament_target_dependencies(${PROJECT_NAME}
+        tf2
+        tf2_ros rclcpp
+        std_msgs
+        applanix_msgs
+        geometry_msgs
+        GeographicLib
+        tf2_geometry_msgs
+        sensor_msgs
+        nav_msgs
+        ublox_msgs
+        autoware_sensing_msgs
+        message_filters
+        )
 
 
 install(TARGETS
@@ -66,6 +81,8 @@ set(AMENT_DEPENDENCIES
         "tf2_geometry_msgs"
         "sensor_msgs"
         "ublox_msgs"
+        "autoware_sensing_msgs"
+        "message_filters"
         )
         
 
