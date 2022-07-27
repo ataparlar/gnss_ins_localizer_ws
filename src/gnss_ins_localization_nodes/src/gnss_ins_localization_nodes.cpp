@@ -21,7 +21,7 @@ CartesianConv::CartesianConv()
       "/localization/twist_estimator/twist_with_covariance/test",
       10);
   map_to_pose_ =
-      this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/sensing/gnss/pose_with_covariance", 10);
+      this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/gnss_pose", 10); // /sensing/gnss/pose_with_covariance
 
   msg_49_sub_ = this->create_subscription<applanix_msgs::msg::NavigationSolutionGsof49>(
       "/lvx_client/gsof/ins_solution_49", 10,
@@ -93,7 +93,7 @@ void CartesianConv::msg_49_callback(const applanix_msgs::msg::NavigationSolution
   double Altitude = msg_49->lla.altitude;
 
   // pose with covariance stamped msg
-  gnss_baselink_pose.header.frame_id = "map";
+  gnss_baselink_pose.header.frame_id = "base_link";
   gnss_baselink_pose.header.stamp = this->now();
 
   // map to base_link rotations
