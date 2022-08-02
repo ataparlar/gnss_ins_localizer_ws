@@ -35,7 +35,9 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(ublox_msgs REQUIRED)
 find_package(autoware_sensing_msgs REQUIRED)
+find_package(autoware_auto_vehicle_msgs REQUIRED)
 find_package(message_filters REQUIRED)
+find_package(velodyne_msgs REQUIRED)
 
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
 
@@ -63,6 +65,8 @@ ament_target_dependencies(${PROJECT_NAME}
         ublox_msgs
         autoware_sensing_msgs
         message_filters
+        autoware_auto_vehicle_msgs
+        velodyne_msgs
         )
 
 
@@ -83,6 +87,8 @@ set(AMENT_DEPENDENCIES
         "ublox_msgs"
         "autoware_sensing_msgs"
         "message_filters"
+        "autoware_auto_vehicle_msgs"
+        "velodyne_msgs"
         )
         
 
